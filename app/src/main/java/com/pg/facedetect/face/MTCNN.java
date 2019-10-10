@@ -1,4 +1,4 @@
-package com.pg.facedetect;
+package com.pg.facedetect.face;
 /*
   MTCNN For Android
   by cjf@xmu 20180625
@@ -37,7 +37,7 @@ public class MTCNN {
     private static final String TAG="MTCNN";
     private AssetManager assetManager;
     private TensorFlowInferenceInterface inferenceInterface;
-    MTCNN(AssetManager mgr){
+    public MTCNN(AssetManager mgr){
         assetManager=mgr;
         loadModel();
     }

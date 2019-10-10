@@ -1,4 +1,4 @@
-package com.pg.facedetect;
+package com.pg.facedetect.face;
 /*
   MTCNN For Android
   by cjf@xmu 20180625
