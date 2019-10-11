@@ -1,8 +1,12 @@
 package com.pg.facedetect;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.renderscript.Allocation;
@@ -14,6 +18,8 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.Surface;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.pg.facedetect.face.Box;
@@ -56,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
                 .lensPosition(LensPositionSelectorsKt.front())
                 .frameProcessor(new FaceDetectProcess())
                 .build();
+
     }
 
     private boolean checkCameraPermission(){
@@ -115,12 +122,63 @@ public class MainActivity extends AppCompatActivity {
             yuvToRgbIntrinsic.setInput(in);
             yuvToRgbIntrinsic.forEach(out);
             Bitmap bm =Bitmap.createBitmap(frame.getSize().width, frame.getSize().height, Bitmap.Config.ARGB_8888);
-//            Bitmap bm = BitmapFactory.decodeByteArray(frame.getImage(),0,frame.getImage().length);
             out.copyTo(bm);
             if(bm!=null) {
-                Vector<Box> boxes = mtcnn.detectFaces(bm, 60);
-                Log.e("test", boxes.size() + "");
+                Matrix m = new Matrix();
+                int orientationDegree = getRotation();
+                m.setRotate(orientationDegree, (float) bm.getWidth() / 2, (float) bm.getHeight() / 2);
+                try {
+                    Bitmap bm1 = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), m, true);
+                    Vector<Box> boxes = mtcnn.detectFaces(bm1, 60);
+                    Log.e("test", boxes.size() + "");
+                } catch (OutOfMemoryError ex) {
+                }
             }
+        }
+
+        private int getRotation(){
+            int facingCamera = CameraCharacteristics.LENS_FACING_FRONT;
+            CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            try {
+                for (int i=0;i<manager.getCameraIdList().length;i++) {
+                    String cameraId = manager.getCameraIdList()[i];
+                    CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+                    Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
+                    if (facing!=null&&facing != facingCamera) {
+                        continue;
+                    }
+
+                    Integer mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+                    int rotation = ((WindowManager)getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
+                    int degrees = 0;
+                    switch (rotation){
+                        case Surface.ROTATION_0:
+                            degrees = 0;
+                            break;
+                        case Surface.ROTATION_90:
+                            degrees = 90;
+                            break;
+                        case Surface.ROTATION_180:
+                            degrees = 180;
+                            break;
+                        case Surface.ROTATION_270:
+                            degrees = 270;
+                            break;
+                    }
+                    int result;
+                    if (facing == CameraCharacteristics.LENS_FACING_FRONT) {
+                        result = (mSensorOrientation + degrees - 360) % 360;
+                        result = (360 + result) % 360;
+                    } else {
+                        // back-facing
+                        result = (mSensorOrientation - degrees + 360) % 360;
+                    }
+                    return result;
+                }
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+            return 0;
         }
     }
 }
