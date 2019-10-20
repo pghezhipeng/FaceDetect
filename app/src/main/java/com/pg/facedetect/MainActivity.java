@@ -25,6 +25,10 @@ import android.widget.Toast;
 import com.pg.facedetect.face.Box;
 import com.pg.facedetect.face.MTCNN;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Vector;
 
 import io.fotoapparat.Fotoapparat;
@@ -35,7 +39,7 @@ import io.fotoapparat.selector.LensPositionSelectorsKt;
 import io.fotoapparat.selector.ResolutionSelectorsKt;
 import io.fotoapparat.view.CameraView;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements MainView{
     private CameraView cameraView;
     private Fotoapparat fotoapparat;
     private MTCNN mtcnn;
@@ -46,6 +50,9 @@ public class MainActivity extends AppCompatActivity {
     private Allocation in, out;
 
     private final static int CAMERA_OK = 101;
+
+    private static boolean DETECTING = false;
+    private FaceDetectPresenter faceDetectPresenter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
                 .lensPosition(LensPositionSelectorsKt.front())
                 .frameProcessor(new FaceDetectProcess())
                 .build();
-
+        faceDetectPresenter = new FaceDetectPresenter(this);
     }
 
     private boolean checkCameraPermission(){
@@ -105,10 +112,23 @@ public class MainActivity extends AppCompatActivity {
         fotoapparat.stop();
     }
 
+    @Override
+    public void faceDetectResult(DetectResult detectResult) {
+        DETECTING = false;
+    }
+
+    @Override
+    public void toastMsg(String msg) {
+        Toast.makeText(this,msg,Toast.LENGTH_SHORT).show();
+    }
+
     public class FaceDetectProcess implements FrameProcessor{
 
         @Override
         public void process(Frame frame) {
+            if(DETECTING){
+                return;
+            }
             if (yuvType == null) {
                 yuvType = new Type.Builder(rs, Element.U8(rs)).setX(frame.getImage().length);
                 in = Allocation.createTyped(rs, yuvType.create(), Allocation.USAGE_SCRIPT);
@@ -130,6 +150,26 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     Bitmap bm1 = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), m, true);
                     Vector<Box> boxes = mtcnn.detectFaces(bm1, 60);
+                    if(boxes.size()>0&&!DETECTING){
+                        DETECTING = true;
+                        File externalFilesDir = getExternalFilesDir("Caches");
+                        if(!externalFilesDir.exists()){
+                            externalFilesDir.mkdirs();
+                        }
+                        String filePath = externalFilesDir.getAbsolutePath()+"/1.jpg";
+                        File file = new File(filePath);
+                        FileOutputStream fos = null;
+                        try {
+                            fos = new FileOutputStream(file);
+                            bm1.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                            fos.flush();
+                            fos.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                        faceDetectPresenter.detectFace(bm1,filePath);
+                    }
                     Log.e("test", boxes.size() + "");
                 } catch (OutOfMemoryError ex) {
                 }
