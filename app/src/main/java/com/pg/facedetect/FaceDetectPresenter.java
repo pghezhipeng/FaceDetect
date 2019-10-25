@@ -23,7 +23,7 @@ import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 public class FaceDetectPresenter {
     private final static int DEFAULT_TIMEOUT = 15;
     private Retrofit retrofit;
-    private String baseUrl = "http://127.0.0.1:5001";
+    private String baseUrl = "http://172.16.101.131:5001";
     private MainView mainView;
 
     public FaceDetectPresenter(MainView mainView){
@@ -42,11 +42,8 @@ public class FaceDetectPresenter {
 
     public void detectFace(Bitmap img,String filePath) {
         final File file = new File(filePath);
-        if(filePath!=null){
-            return;
-        }
         RequestBody requestFile = RequestBody.create(MediaType.parse("multipart/form-data"),file);
-        MultipartBody.Part filePart = MultipartBody.Part.createFormData("fileName",file.getName(),requestFile);
+        MultipartBody.Part filePart = MultipartBody.Part.createFormData("file",file.getName(),requestFile);
         Disposable disposable = retrofit.create(FaceDetectApi.class).recognition(filePart)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
