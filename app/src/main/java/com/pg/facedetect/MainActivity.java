@@ -2,9 +2,12 @@ package com.pg.facedetect;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.os.Build;
@@ -16,16 +19,25 @@ import android.renderscript.ScriptIntrinsicYuvToRGB;
 import android.renderscript.Type;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Surface;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import com.pg.facedetect.bean.DetectResult;
+import com.pg.facedetect.bean.UserResult;
 import com.pg.facedetect.face.Box;
+import com.pg.facedetect.face.ImageUtils;
 import com.pg.facedetect.face.MTCNN;
+import com.pg.facedetect.face.RecycleBitmap;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -53,6 +65,9 @@ public class MainActivity extends AppCompatActivity implements MainView{
 
     private static boolean DETECTING = false;
     private FaceDetectPresenter faceDetectPresenter;
+    private AlertDialog alertDialog;
+    private ImageView headView;
+    private TextView userNameView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +85,29 @@ public class MainActivity extends AppCompatActivity implements MainView{
                 .frameProcessor(new FaceDetectProcess())
                 .build();
         faceDetectPresenter = new FaceDetectPresenter(this);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = View.inflate(getApplication(),R.layout.dialog_userinfo,null);
+        builder.setView(view);
+        builder.setCancelable(false);
+        builder.setTitle("识别结果");
+        builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                alertDialog.dismiss();
+            }
+        });
+        alertDialog = builder.create();
+        headView = view.findViewById(R.id.iv_user);
+        userNameView = view.findViewById(R.id.tv_user);
+        alertDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialogInterface) {
+                DETECTING = false;
+                RecycleBitmap.recycleImageView(headView);
+                headView.setImageDrawable(null);
+            }
+        });
     }
 
     private boolean checkCameraPermission(){
@@ -113,13 +151,39 @@ public class MainActivity extends AppCompatActivity implements MainView{
     }
 
     @Override
-    public void faceDetectResult(DetectResult detectResult) {
-        DETECTING = false;
+    public void faceDetectResult(String idCard) {
+        faceDetectPresenter.getUserInfo(idCard);
     }
 
     @Override
     public void toastMsg(String msg) {
         Toast.makeText(this,msg,Toast.LENGTH_SHORT).show();
+        DETECTING = false;
+    }
+
+    @Override
+    public void showUserInfo(UserResult userResult) {
+        String userName = userResult.getName();
+        String head = getFilePath();
+        FileInputStream fis = null;
+        try {
+            fis = new FileInputStream(head);
+            Bitmap bitmap  = BitmapFactory.decodeStream(fis);
+            headView.setImageBitmap(bitmap);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        userNameView.setText("用户："+userName);
+        alertDialog.show();
+    }
+
+    private String getFilePath(){
+        File externalFilesDir = getExternalFilesDir("Caches");
+        if(!externalFilesDir.exists()){
+            externalFilesDir.mkdirs();
+        }
+        String filePath = externalFilesDir.getAbsolutePath()+"/1.jpg";
+        return filePath;
     }
 
     public class FaceDetectProcess implements FrameProcessor{
@@ -151,29 +215,66 @@ public class MainActivity extends AppCompatActivity implements MainView{
                     Bitmap bm1 = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), m, true);
                     Vector<Box> boxes = mtcnn.detectFaces(bm1, 60);
                     if(boxes.size()>0&&!DETECTING){
-                        DETECTING = true;
-                        File externalFilesDir = getExternalFilesDir("Caches");
-                        if(!externalFilesDir.exists()){
-                            externalFilesDir.mkdirs();
+                        int maxArea = boxes.get(0).area();
+                        Rect rect = getFaceRect(boxes.get(0),bm1.getWidth(),bm1.getHeight());
+                        if(boxes.size()>1)
+                        for (Box box:boxes){
+                            if(box.area()>maxArea){
+                                maxArea = box.area();
+                                rect = getFaceRect(box,bm1.getWidth(),bm1.getHeight());
+                            }
                         }
-                        String filePath = externalFilesDir.getAbsolutePath()+"/1.jpg";
-                        File file = new File(filePath);
+                        Bitmap cropBitmap = ImageUtils.cropBitmap(bm1, rect, false);
+                        DETECTING = true;
+
+                        File file = new File(getFilePath());
+                        if(file.exists()){
+                            file.delete();
+                        }
                         FileOutputStream fos = null;
                         try {
                             fos = new FileOutputStream(file);
-                            bm1.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                            cropBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
                             fos.flush();
                             fos.close();
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-
-                        faceDetectPresenter.detectFace(bm1,filePath);
+                        cropBitmap.recycle();
+                        cropBitmap = null;
+                        faceDetectPresenter.detectFace(getFilePath());
                     }
                     Log.e("test", boxes.size() + "");
                 } catch (OutOfMemoryError ex) {
                 }
             }
+        }
+
+        private Rect getFaceRect(Box box,int maxWidth,int maxHeight){
+            double scaleSize = 1.5;
+            int scaleLength = box.width();
+            if(box.height()>scaleLength){
+                scaleLength = box.height();
+            }
+            if(scaleSize*scaleLength>=maxHeight){
+                scaleSize = maxHeight/scaleLength;
+            }
+            double newX = box.left() - (((scaleSize-1)*scaleLength)/2);
+            if(newX<0){
+                newX = 0;
+            }
+            if((newX+(scaleSize*scaleLength))>maxWidth){
+                newX = maxWidth - (scaleSize*scaleLength);
+            }
+            double newY = box.top() - (((scaleSize-1)*scaleLength)/2);
+            if(newY < 0){
+                newY = 0;
+            }
+            if(newY + (scaleSize*scaleLength)>maxHeight){
+                newY = maxHeight - (scaleSize*scaleLength);
+            }
+            Rect rect = new Rect((int)newX,(int)newY,(int)(newX+(scaleSize*scaleLength)),(int)(newY+(scaleSize*scaleLength)));
+            return rect;
         }
 
         private int getRotation(){

@@ -1,14 +1,11 @@
 package com.pg.facedetect;
 
-import android.graphics.Bitmap;
+import com.pg.facedetect.bean.DetectResult;
+import com.pg.facedetect.bean.UserResult;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import io.reactivex.Scheduler;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
@@ -19,11 +16,12 @@ import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class FaceDetectPresenter {
     private final static int DEFAULT_TIMEOUT = 15;
     private Retrofit retrofit;
-    private String baseUrl = "http://172.16.101.131:5001";
+    private String baseUrl = "http://192.168.37.133:5001";
     private MainView mainView;
 
     public FaceDetectPresenter(MainView mainView){
@@ -37,10 +35,32 @@ public class FaceDetectPresenter {
                 .baseUrl(baseUrl)
                 .client(httpClient)
                 .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create())
                 .build();
     }
 
-    public void detectFace(Bitmap img,String filePath) {
+    public void getUserInfo(String idCard){
+        retrofit.create(FaceDetectApi.class).getUserInfo(idCard)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<UserResult>() {
+                    @Override
+                    public void accept(UserResult userResult) throws Exception {
+                        if(userResult.getCode()==0){
+                            mainView.showUserInfo(userResult);
+                        }else{
+                            mainView.toastMsg(userResult.getMsg());
+                        }
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        mainView.toastMsg(throwable.getMessage());
+                    }
+                });
+    }
+
+    public void detectFace(String filePath) {
         final File file = new File(filePath);
         RequestBody requestFile = RequestBody.create(MediaType.parse("multipart/form-data"),file);
         MultipartBody.Part filePart = MultipartBody.Part.createFormData("file",file.getName(),requestFile);
@@ -51,17 +71,16 @@ public class FaceDetectPresenter {
                     @Override
                     public void accept(DetectResult detectResult) throws Exception {
                         if(detectResult.getCode()==0){
-                            mainView.toastMsg(detectResult.getId_num());
+                            String idNum = detectResult.getId_num().substring(0,detectResult.getId_num().indexOf("."));
+                            mainView.faceDetectResult(idNum);
                         }else {
                             mainView.toastMsg(detectResult.getMsg());
                         }
-                        file.delete();
                     }
                 }, new Consumer<Throwable>() {
                     @Override
                     public void accept(Throwable throwable) throws Exception {
                         mainView.toastMsg(throwable.getMessage());
-                        file.delete();
                     }
                 });
     }

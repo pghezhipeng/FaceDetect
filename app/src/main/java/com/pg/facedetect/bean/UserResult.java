@@ -1,9 +1,13 @@
-package com.pg.facedetect;
+package com.pg.facedetect.bean;
 
-public class DetectResult {
+/**
+ * Created by pghez on 2019/10/26.
+ */
+
+public class UserResult {
     private int code;
     private String msg;
-    private String id_num;
+    private String name;
 
     public int getCode() {
         return code;
@@ -21,11 +25,11 @@ public class DetectResult {
         this.msg = msg;
     }
 
-    public String getId_num() {
-        return id_num;
+    public String getName() {
+        return name;
     }
 
-    public void setId_num(String id_num) {
-        this.id_num = id_num;
+    public void setName(String name) {
+        this.name = name;
     }
 }
