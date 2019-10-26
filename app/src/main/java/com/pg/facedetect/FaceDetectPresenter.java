@@ -21,7 +21,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class FaceDetectPresenter {
     private final static int DEFAULT_TIMEOUT = 15;
     private Retrofit retrofit;
-    private String baseUrl = "http://192.168.37.133:5001";
+    private String baseUrl = "http://172.16.101.131:5001";
     private MainView mainView;
 
     public FaceDetectPresenter(MainView mainView){
