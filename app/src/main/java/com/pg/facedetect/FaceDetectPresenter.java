@@ -21,7 +21,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class FaceDetectPresenter {
     private final static int DEFAULT_TIMEOUT = 15;
     private Retrofit retrofit;
+    private Retrofit userInfoRetrofit;
     private String baseUrl = "http://172.16.101.131:5001";
+    private String userInfoUrl = "http://172.20.130.224:8088";
     private MainView mainView;
 
     public FaceDetectPresenter(MainView mainView){
@@ -37,16 +39,24 @@ public class FaceDetectPresenter {
                 .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
+
+        userInfoRetrofit = new Retrofit.Builder()
+                .baseUrl(userInfoUrl)
+                .client(httpClient)
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
     }
 
     public void getUserInfo(String idCard){
-        retrofit.create(FaceDetectApi.class).getUserInfo(idCard)
+        Disposable disposable = userInfoRetrofit.create(FaceDetectApi.class).getUserInfo(idCard)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Consumer<UserResult>() {
                     @Override
                     public void accept(UserResult userResult) throws Exception {
                         if(userResult.getCode()==0){
+                            userResult.setIdNumber(idCard);
                             mainView.showUserInfo(userResult);
                         }else{
                             mainView.toastMsg(userResult.getMsg());

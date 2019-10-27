@@ -69,10 +69,13 @@ public class MainActivity extends AppCompatActivity implements MainView{
     private ImageView headView;
     private TextView userNameView;
 
+    private String idNumber;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        idNumber = getIntent().getStringExtra("ID_NUM");
         cameraView = findViewById(R.id.camera_view);
         mtcnn = new MTCNN(getAssets());
         rs = RenderScript.create(this);
@@ -173,7 +176,11 @@ public class MainActivity extends AppCompatActivity implements MainView{
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-        userNameView.setText("用户："+userName);
+        if(userResult.getIdNumber().equals(idNumber)) {
+            userNameView.setText("用户：" + userName);
+        }else{
+            userNameView.setText("身份证不匹配");
+        }
         alertDialog.show();
     }
 

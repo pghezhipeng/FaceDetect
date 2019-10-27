@@ -7,6 +7,7 @@ package com.pg.facedetect.bean;
 public class UserResult {
     private int code;
     private String msg;
+    private String idNumber;
     private String name;
 
     public int getCode() {
@@ -23,6 +24,14 @@ public class UserResult {
 
     public void setMsg(String msg) {
         this.msg = msg;
+    }
+
+    public String getIdNumber() {
+        return idNumber;
+    }
+
+    public void setIdNumber(String idNumber) {
+        this.idNumber = idNumber;
     }
 
     public String getName() {
