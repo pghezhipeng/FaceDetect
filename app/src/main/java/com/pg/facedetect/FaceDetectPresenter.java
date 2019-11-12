@@ -23,7 +23,7 @@ public class FaceDetectPresenter {
     private Retrofit retrofit;
     private Retrofit userInfoRetrofit;
     private String baseUrl = "http://172.16.101.131:5001";
-    private String userInfoUrl = "http://172.20.130.224:8088";
+    private String userInfoUrl = "http://172.16.101.131";
     private MainView mainView;
 
     public FaceDetectPresenter(MainView mainView){

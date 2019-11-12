@@ -41,6 +41,8 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Vector;
 
 import io.fotoapparat.Fotoapparat;
@@ -50,9 +52,13 @@ import io.fotoapparat.preview.FrameProcessor;
 import io.fotoapparat.selector.LensPositionSelectorsKt;
 import io.fotoapparat.selector.ResolutionSelectorsKt;
 import io.fotoapparat.view.CameraView;
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.functions.Consumer;
 
 public class MainActivity extends AppCompatActivity implements MainView{
     private CameraView cameraView;
+    private RectanglesView rectanglesView;
     private Fotoapparat fotoapparat;
     private MTCNN mtcnn;
 
@@ -71,12 +77,15 @@ public class MainActivity extends AppCompatActivity implements MainView{
 
     private String idNumber;
 
+    private boolean IS_DRAW_FACE = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         idNumber = getIntent().getStringExtra("ID_NUM");
         cameraView = findViewById(R.id.camera_view);
+        rectanglesView=findViewById(R.id.rv_faceframe);
         mtcnn = new MTCNN(getAssets());
         rs = RenderScript.create(this);
         yuvToRgbIntrinsic = ScriptIntrinsicYuvToRGB.create(rs, Element.U8_4(rs));
@@ -155,7 +164,11 @@ public class MainActivity extends AppCompatActivity implements MainView{
 
     @Override
     public void faceDetectResult(String idCard) {
-        faceDetectPresenter.getUserInfo(idCard);
+//        faceDetectPresenter.getUserInfo(idCard);
+        UserResult userResult = new UserResult();
+        userResult.setName("测试");
+        userResult.setIdNumber("1");
+        showUserInfo(userResult);
     }
 
     @Override
@@ -221,6 +234,23 @@ public class MainActivity extends AppCompatActivity implements MainView{
                 try {
                     Bitmap bm1 = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), m, true);
                     Vector<Box> boxes = mtcnn.detectFaces(bm1, 60);
+                    if(IS_DRAW_FACE){
+                        List<Rect> rectangles = new ArrayList<>();
+                        for (Box box:boxes){
+                            int rLeft = bm1.getWidth()-box.right();
+                            Rect rectangle = new Rect(rLeft,box.top(),rLeft+box.width(),box.bottom());
+                            rectangles.add(rectangle);
+                        }
+                        Observable.just(rectangles)
+                                .subscribeOn(AndroidSchedulers.mainThread())
+                                .subscribe(new Consumer<List<Rect>>() {
+                                    @Override
+                                    public void accept(List<Rect> rectangles) throws Exception {
+                                        rectanglesView.setRectangles(rectangles);
+                                    }
+                                });
+                        return;
+                    }
                     if(boxes.size()>0&&!DETECTING){
                         int maxArea = boxes.get(0).area();
                         Rect rect = getFaceRect(boxes.get(0),bm1.getWidth(),bm1.getHeight());
