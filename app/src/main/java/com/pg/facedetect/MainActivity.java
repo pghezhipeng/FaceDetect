@@ -270,15 +270,6 @@ public class MainActivity extends AppCompatActivity implements MainView{
                             file.delete();
                         }
                         qualityCompress(cropBitmap,file);
-//                        FileOutputStream fos = null;
-//                        try {
-//                            fos = new FileOutputStream(file);
-//                            cropBitmap.compress(Bitmap.CompressFormat.JPEG, 20, fos);
-//                            fos.flush();
-//                            fos.close();
-//                        } catch (IOException e) {
-//                            e.printStackTrace();
-//                        }
                         cropBitmap.recycle();
                         cropBitmap = null;
                         faceDetectPresenter.detectFace(getFilePath());
