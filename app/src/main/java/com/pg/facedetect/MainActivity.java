@@ -36,6 +36,7 @@ import com.pg.facedetect.face.ImageUtils;
 import com.pg.facedetect.face.MTCNN;
 import com.pg.facedetect.face.RecycleBitmap;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -268,15 +269,16 @@ public class MainActivity extends AppCompatActivity implements MainView{
                         if(file.exists()){
                             file.delete();
                         }
-                        FileOutputStream fos = null;
-                        try {
-                            fos = new FileOutputStream(file);
-                            cropBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-                            fos.flush();
-                            fos.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                        qualityCompress(cropBitmap,file);
+//                        FileOutputStream fos = null;
+//                        try {
+//                            fos = new FileOutputStream(file);
+//                            cropBitmap.compress(Bitmap.CompressFormat.JPEG, 20, fos);
+//                            fos.flush();
+//                            fos.close();
+//                        } catch (IOException e) {
+//                            e.printStackTrace();
+//                        }
                         cropBitmap.recycle();
                         cropBitmap = null;
                         faceDetectPresenter.detectFace(getFilePath());
@@ -284,6 +286,19 @@ public class MainActivity extends AppCompatActivity implements MainView{
                     Log.e("test", boxes.size() + "");
                 } catch (OutOfMemoryError ex) {
                 }
+            }
+        }
+
+        private void qualityCompress(Bitmap bmp, File file) {
+            // 0-100 100为不压缩
+            int quality = 20;
+            try {
+                FileOutputStream fos = new FileOutputStream(file);
+                bmp.compress(Bitmap.CompressFormat.JPEG, quality, fos);
+                fos.flush();
+                fos.close();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
