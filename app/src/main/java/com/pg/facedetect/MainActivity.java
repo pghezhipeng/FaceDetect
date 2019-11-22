@@ -77,7 +77,7 @@ public class MainActivity extends AppCompatActivity implements MainView{
 
     private String idNumber;
 
-    private boolean IS_DRAW_FACE = false;
+    private boolean IS_DRAW_FACE = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
